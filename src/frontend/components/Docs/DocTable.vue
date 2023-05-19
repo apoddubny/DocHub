@@ -24,19 +24,26 @@
             <v-icon title="Экспорт в Excel">mdi-export</v-icon>
           </v-btn>
           Экспорт в Excel
-        </template>        
+        </template>
         <template #item="{ item }">
           <tr>
-            <td 
-              v-for="(field, index) in rowFields(item)" 
+            <td
+              v-for="(field, index) in rowFields(item)"
               v-bind:key="index"
               v-bind:align="field.align">
               <template v-if="field.link">
                 <d-c-link v-bind:href="field.link">{{ field.value }}</d-c-link>
               </template>
+              <template v-else-if="field.html"><span v-html="field.value"></span></template>
+              <template v-else-if="field.list">
+                <span v-for="(rw, i) in field.list" v-bind:key="i">
+                  <template v-if="rw.link"><d-c-link v-bind:href="rw.link">{{ rw.value }}</d-c-link>{{ rw.separator }}</template>
+                  <template v-else>{{ rw.value }}{{ rw.separator }}</template>
+                </span>
+              </template>
               <template v-else>{{ field.value }}</template>
             </td>
-          </tr>  
+          </tr>
         </template>
         <template #no-data>
           <v-alert v-if="isReady" v-bind:value="true" icon="warning">
@@ -45,7 +52,7 @@
           <v-alert v-else v-bind:value="true">
             Тружусь...
           </v-alert>
-        </template>  
+        </template>
       </v-data-table>
     </v-card>
   </box>
@@ -55,13 +62,13 @@
 
   import DCLink from '@front/components/Controls/DCLink.vue';
   import env, {Plugins} from '@front/helpers/env';
-  
+
   import DocMixin from './DocMixin';
 
   export default {
     name: 'DocTable',
-    components: { 
-      DCLink 
+    components: {
+      DCLink
     },
     mixins: [DocMixin],
     props: {
@@ -91,8 +98,8 @@
       exportToExcel() {
         const template = '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40"><head><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>{worksheet}</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--><meta http-equiv="content-type" content="text/plain; charset=UTF-8"/></head><body><table>{table}</table></body></html>'
               , base64 = function(s) { return window.btoa(unescape(encodeURIComponent(s))); }
-              , format = function(s, c) { 	    	 
-                return s.replace(/{(\w+)}/g, function(m, p) { return c[p]; }); 
+              , format = function(s, c) {
+                return s.replace(/{(\w+)}/g, function(m, p) { return c[p]; });
               },
               htmlEscape = function(str) {
                 return String(str)
@@ -104,11 +111,11 @@
                   .replace(/\n/g, '<br>');
               },
               ctx = {
-                worksheet: this.document || 'Worksheet', 
-                table: 
-                  '<tr>' + this.headers.map((header) => `<td>${header.text}</td>`).join('') + '</tr>' 
+                worksheet: this.document || 'Worksheet',
+                table:
+                  '<tr>' + this.headers.map((header) => `<td>${header.text}</td>`).join('') + '</tr>'
                   + (this.source.dataset || []).map((row) => {
-                    return '<tr>' + 
+                    return '<tr>' +
                       this.rowFields(row).map((cell) => {
                         return `<td>${htmlEscape(cell.value)}</td>`;
                       }).join('')
@@ -135,7 +142,9 @@
           return {
             value: (row[column.value] || '').toString().replace('\\n','\n'),
             link: column.link ? row[column.link] : undefined,
-            align: column.align || 'left'
+            align: column.align || 'left',
+            html: column.html || false,
+            list: column.list ? row[column.value] : false
           };
         });
         return result;
