@@ -4,7 +4,7 @@ entities:
     # Предопределенные конфигурационные параметры для генерации PlantUML
     config:
       # Какой движок будет использоваться для рендера
-      renderCore: elk # elk / smetana / graphviz
+      renderCore: graphviz # elk / smetana / graphviz
     # API функции, используемые для генерации PlantUML
     api:
       # Генерирует на данных о компонентах и областях PlantUML диаграмму компонентов
@@ -19,6 +19,8 @@ entities:
           $components := components;
           $manifest := manifest;
         
+          $stopBracketsCount := function($a, $b) {$a = 0 ? "}\n" : $a & "}\n"};
+          
           $join($map($areas, function($domain, $index) {(
               $result := "";
               $component := $lookup($components, $domain);
@@ -86,7 +88,10 @@ entities:
               $result & (
                 $count($split($domain, ".")) > 1 
                 and ($count($split($domain, ".")) > $count($split($areas[$index + 1], "."))
-              ) ? "}\n" : "");
+              ) ? (
+                $m := $areas[$index + 1] ? 0 : -1;
+                $reduce([0..($count($split($domain, ".")) - $count($split($areas[$index + 1], ".")) + $m)], $stopBracketsCount);
+              ) : "");
           )}));
         )
       # Генерирует PlantUML код связей для диаграммы компонентов
@@ -118,7 +123,6 @@ entities:
             $id := $params."dh-context-id";
             $context := $lookup(contexts, $id);
             $prototype := entities.contexts.presentations.plantuml;
-          
             /* Преобразует относительные пути к файлам в прямые*/
             $toDirectRes := function($value) {
                 $substring($value, 0, 4) = "res:" ? $value : "res://contexts/" & $id & "#" & $value
@@ -145,6 +149,7 @@ entities:
         source: >
           (
             $id := $params."dh-context-id";
+
             /* Получаем доступ к оригинальным данным */
             $manifest := _origin ? _origin : $;
             /* Получаем контекст */
@@ -153,7 +158,7 @@ entities:
             $manifest := _source ? _source : $;
           
             $isExtraLinks := $not($string($context."extra-links") = "false");
-          
+
             /* Получаем коллекцию дефолтных вспомогательных функций */
             $defFunctions := $manifest.entities.contexts.api;
           
@@ -163,7 +168,8 @@ entities:
             /* Определяем движок рендеринга */
             $renderCore := $lookup({
               "elk": "!pragma layout elk",
-              "smetana": "!pragma layout smetana"
+              "smetana": "!pragma layout smetana",
+              "graphviz": "!pragma layout graphviz"
             }, $defConfig.renderCore);
 
             /* Формируем заголовок */
@@ -198,7 +204,6 @@ entities:
             $linksCode := $eval($defFunctions.makePumlComponentsLinks, {
               "links": $links
             });
-          
             /* Готовим данные для передачи в шаблон */
             {
               "renderCore": $renderCore,
